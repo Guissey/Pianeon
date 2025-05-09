@@ -2,20 +2,21 @@
 
 #include <Adafruit_NeoPixel.h>
 
-LedController::LedController(int led_count, int led_strip_pin) {
+LedController::LedController(int led_count, int led_strip_pin, bool use_preferences) {
   ws2812b = new Adafruit_NeoPixel(led_count, led_strip_pin, NEO_GRB + NEO_KHZ800);
   led_number = led_count;
+  use_preferences = use_preferences;
   changes_to_show = false;
 }
 
 LedController::~LedController() {
   delete ws2812b;
-  // nvs.end();
+  if (use_preferences) nvs.end();
 }
 
 void LedController::setup() {
-  // nvs.begin("led_pref", false);
-  // ESP_LOGW("", "color %06x, brigthness %d", nvs.getUInt("led_color", DEFAULT_LED_COLOR), nvs.getUChar("brightness", DEFAULT_BRIGHTNESS));
+  if (use_preferences) nvs.begin("Pianeon", false);
+  log_d("color %06x, brigthness %d", this->getColor(), this->getBrightness());
   ws2812b->begin();
   ws2812b->setBrightness(this->getBrightness());
   ws2812b->clear();
@@ -23,51 +24,69 @@ void LedController::setup() {
 }
 
 void LedController::setColor(uint32_t color) {
-  // nvs.putUInt("led_color", color);
-  led_color = color;
+  if (use_preferences) {
+    nvs.putUInt("led_color", color);
+  } else {
+    led_color_temp = color;
+  }
+  log_d("led_color set to: %04x", color);
 }
 
 void LedController::setColor(uint8_t red, uint8_t green, uint8_t blue) {
-  // nvs.putUInt("led_color", ws2812b->Color(red, green, blue));
-  led_color = ws2812b->Color(red, green, blue);
+  uint32_t color = ws2812b->Color(red, green, blue);
+  if (use_preferences) {
+    nvs.putUInt("led_color", color);
+  } else {
+    led_color_temp = color;
+  }
+  log_d("led_color set to: %04x", color);
 }
 
 uint32_t LedController::getColor() {
-  // return nvs.getUInt("led_color", DEFAULT_LED_COLOR);
-  return led_color;
+  return use_preferences
+    ? nvs.getUInt("led_color", DEFAULT_LED_COLOR)
+    : led_color_temp;
 }
 
 void LedController::setBrightness(uint8_t brightness) {
-  // nvs.putUChar("brightness", brightness);
-  this->brightness = brightness;
+  if (use_preferences) {
+    nvs.putUChar("brightness", brightness);
+  } else {
+    brightness_temp = brightness;
+  }
   ws2812b->setBrightness(brightness);
+  log_d("Brightness set to: %d", brightness);
 }
 
 uint8_t LedController::getBrightness() {
-  // return nvs.getUChar("brightness", DEFAULT_BRIGHTNESS);
-  return brightness;
+  return use_preferences
+    ? nvs.getUChar("brightness", DEFAULT_BRIGHTNESS)
+    : brightness_temp;
 }
 
-void LedController::setShowSustain(bool show) {
-  // nvs.putBool("sustain", showSustain);
-  if (!show) {
-    this->lightOffSides();
+void LedController::setShowSustain(bool showSustain) {
+  if (!showSustain) this->lightOffSides();
+  if (use_preferences) {
+    nvs.putBool("sustain", showSustain);
+  } else {
+    show_sustain_temp = showSustain;
   }
-  show_sustain = show;
+  log_d("Brightness set to: %d", showSustain);
 }
 
 bool LedController::getShowSustain() {
-  // return nvs.getBool("sustain", false);
-  return show_sustain;
+  return use_preferences
+    ? nvs.getBool("sustain", false)
+    : show_sustain_temp;
 }
 
 void LedController::lightOn(uint8_t note, uint8_t velocity) {
-  ws2812b->setPixelColor(this->getLedIndex(note), this->getColor());
+  ws2812b->setPixelColor(this->computePixelIndex(note), this->getColor());
   changes_to_show = true;
 }
 
 void LedController::lightOff(uint8_t note) {
-  ws2812b->setPixelColor(this->getLedIndex(note), 0);
+  ws2812b->setPixelColor(this->computePixelIndex(note), 0);
   changes_to_show = true;
 }
 
@@ -95,6 +114,7 @@ void LedController::show() {
 void LedController::blinkLoop() {
   unsigned long current_millis = millis();
   if (current_millis - last_blink_millis < 300) return;
+
   last_blink_millis = current_millis;
   this->lightOff(blink_note++);
   if (blink_note >= 35) {
@@ -103,6 +123,6 @@ void LedController::blinkLoop() {
   this->lightOn(blink_note, 100);
 }
 
-int LedController::getLedIndex(uint8_t note) {
+int LedController::computePixelIndex(uint8_t note) {
   return (note - 21) * 2;
 }
