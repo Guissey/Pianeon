@@ -9,9 +9,8 @@
 #include "secrets.h"
 #include "index.h"
 
-ConfigServer::ConfigServer(LedController* led, uint8_t mode) {
-  log_i("%s", mode);
-  mode = mode;
+ConfigServer::ConfigServer(LedController* led, uint8_t webserver_mode) {
+  mode = webserver_mode;
   led_controller = led;
   server = new WebServer(80);
 }
@@ -46,7 +45,7 @@ void ConfigServer::startApMode() {
   IPAddress local_ip(LOCAL_IP);
   IPAddress gateway(GATEWAY_IP);
   IPAddress subnet(SUBNET);
-  WiFi.softAP(AP_SSID, AP_PASSWORD);
+  WiFi.softAP(AP_SSID, NULL);
   WiFi.softAPConfig(local_ip, gateway, subnet);
   delay(100);
 

@@ -32,7 +32,7 @@ class LedController {
     Adafruit_NeoPixel* ws2812b;
     Preferences nvs;
     uint16_t led_number;
-    bool use_preferences;
+    bool use_nvs;
     uint32_t led_color_temp = DEFAULT_LED_COLOR;
     uint8_t brightness_temp = DEFAULT_BRIGHTNESS;
     bool show_sustain_temp = true;

@@ -13,7 +13,7 @@ std::string getHtmlPage(char* brightness, char* red, char* green, char* blue, bo
 <!DOCTYPE html>
 <html>
 <head>
-  <title>PianoLED</title>
+  <title>Pianeon</title>
   <style>
     html {
       font-size: min(6vw, 40px);
@@ -104,7 +104,7 @@ std::string getHtmlPage(char* brightness, char* red, char* green, char* blue, bo
 
 <body>
   <h1 class="title">
-    PianoLED
+    Pianeon
   </h1>
 
   <div>

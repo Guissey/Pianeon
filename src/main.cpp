@@ -7,9 +7,10 @@
 #define PIN_WS2812B 16
 #define LED_NUMBER 175
 #define USE_PREFERENCES 0
-#define WEBSERVER_MODE 0 // 0: inactive, 1: AP, 2: STA
+#define WEBSERVER_MODE 2 // 0: inactive, 1: AP, 2: STA
 
 /// Initialisation ///
+
 LedController led(LED_NUMBER, PIN_WS2812B, USE_PREFERENCES);
 ConfigServer server(&led, WEBSERVER_MODE);
 
@@ -23,7 +24,7 @@ void setup() {
 
 /// Loop ///
 void loop() {
-  led.blinkLoop();
+  // led.blinkLoop();
   led.show();
   server.loop();
 }
