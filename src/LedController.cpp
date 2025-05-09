@@ -26,6 +26,7 @@ void LedController::setup() {
 void LedController::setColor(uint32_t color) {
   if (use_preferences) {
     nvs.putUInt("led_color", color);
+    log_d("From nvs");
   } else {
     led_color_temp = color;
   }
