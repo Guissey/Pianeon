@@ -12,7 +12,7 @@ class ConfigServer {
     void setup();
     void loop();
     
-    private:
+  private:
     WebServer* server;
     LedController* led_controller;
     // 0: inactive, 1: AP, 2: STA
