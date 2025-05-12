@@ -1,3 +1,0 @@
-This library was missing from the auto-imported ones so it is imported by hand here.
-Props to https://github.com/esp32beans/ESP32_USB_Host_HID/
-for making the changes for Arduino.

@@ -3,6 +3,7 @@
 // #include "LedController.h"
 // #include "ConfigServer.h"
 #include "UsbMidiHost.h"
+// #include "usb_midi_host.hpp"
 
 #define PIN_WS2812B 16
 #define LED_NUMBER 175
@@ -22,7 +23,7 @@ void setup() {
   // led.setup();
   // server.setup();
   usb_midi.setup();
-  log_v("Setup done");
+  // setupUsbMidi();
 }
 
 /// Loop ///
@@ -30,4 +31,5 @@ void loop() {
   // led.blinkLoop();
   // led.show();
   // server.loop();
+  // loopUsbMidi();
 }

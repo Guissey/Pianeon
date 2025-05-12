@@ -21,7 +21,8 @@ typedef enum {
   ACTION_GET_DEV_DESC     = (1 << 2),
   ACTION_GET_CONFIG_DESC  = (1 << 3),
   ACTION_GET_STR_DESC     = (1 << 4),
-  ACTION_CLOSE_DEV        = (1 << 5),
+  ACTION_TRANSFER         = (1 << 5),
+  ACTION_CLOSE_DEV        = (1 << 6),
 } action_t;
 
 typedef struct {
@@ -54,6 +55,7 @@ typedef struct {
 
 static const char *TAG_USB_CLASS = "CLASS";
 static class_driver_t *s_driver_obj;
+usb_transfer_t *transfer;
 
 /// Functions declaration ///
 
@@ -63,6 +65,8 @@ static void actionGetInfo(usb_device_t*);
 static void actionGetDevDesc(usb_device_t*);
 static void actionGetConfigDesc(usb_device_t*);
 static void actionGetStrDesc(usb_device_t*);
+static void transferCallback(usb_transfer_t*);
+static void actionTransferCallback(usb_device_t*);
 static void actionCloseDev(usb_device_t*);
 static void classDriverDeviceHandle(usb_device_t*);
 void classDriverTask(void*);
@@ -168,9 +172,44 @@ static void actionGetStrDesc(usb_device_t *device_obj) {
     ESP_LOGI(TAG_USB_CLASS, "Getting Serial Number string descriptor");
     usb_print_string_descriptor(dev_info.str_desc_serial_num);
   }
+  device_obj->actions |= ACTION_TRANSFER;
+}
+
+static void transferCallback(usb_transfer_t *transfer) {
+  ESP_LOGI(TAG_USB_CLASS, "Receiving midi packet: %02x", transfer->data_buffer);
+  // ESP_ERROR_CHECK(usb_host_transfer_submit(transfer));
+}
+
+/**
+ * Look for a MIDI interface and claim it.
+ * Then look for its IN endpoint and attach a callback to it.
+ */
+static void actionTransferCallback(usb_device_t *device_obj) {
+  ESP_LOGI(TAG_USB_CLASS, "action transfer attach");
+  const usb_config_desc_t *config_desc;
+  ESP_ERROR_CHECK(usb_host_get_active_config_descriptor(device_obj->dev_hdl, &config_desc));
+
+  ESP_LOGI(TAG_USB_CLASS, "Claiming interface");
+  ESP_ERROR_CHECK(usb_host_interface_claim(device_obj->client_hdl, device_obj->dev_hdl, 1, 0));
+
+  ESP_LOGI(TAG_USB_CLASS, "Attaching transfer to endpoint");
+  // const usb_ep_desc_t* endpoint_desc;
+  // endpoint_desc = usb_parse_endpoint_descriptor_by_address(config_desc, 0, 0, 0x82, NULL);
+  // ESP_LOGI(TAG_USB_CLASS, "Endpoint:\taddr: %02x\tpacket size: %02x", endpoint_desc->bEndpointAddress, endpoint_desc->wMaxPacketSize);
+  ESP_ERROR_CHECK(usb_host_transfer_alloc(64, 0, &transfer));
+  transfer->device_handle = device_obj->dev_hdl;
+  // transfer->bEndpointAddress = endpoint_desc->bEndpointAddress;
+  transfer->bEndpointAddress = 0x82;
+  // transfer->num_bytes = endpoint_desc->wMaxPacketSize;
+  transfer->num_bytes = 64;
+  transfer->callback = transferCallback;
+  transfer->context = NULL;
+  ESP_ERROR_CHECK(usb_host_transfer_submit(transfer));
 }
 
 static void actionCloseDev(usb_device_t *device_obj) {
+  usb_host_interface_release(device_obj->client_hdl, device_obj->dev_hdl, 1);
+  ESP_ERROR_CHECK(usb_host_transfer_free(transfer));
   ESP_ERROR_CHECK(usb_host_device_close(device_obj->client_hdl, device_obj->dev_hdl));
   device_obj->dev_hdl = NULL;
   device_obj->dev_addr = 0;
@@ -194,6 +233,9 @@ static void classDriverDeviceHandle(usb_device_t *device_obj) {
     }
     if (actions & ACTION_GET_STR_DESC) {
       actionGetStrDesc(device_obj);
+    }
+    if (actions & ACTION_TRANSFER) {
+      actionTransferCallback(device_obj);
     }
     if (actions & ACTION_CLOSE_DEV) {
       actionCloseDev(device_obj);
