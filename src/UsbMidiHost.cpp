@@ -13,6 +13,9 @@
 #include "usb/usb_host.h"
 #include "driver/gpio.h"
 
+#include <esp32-hal-log.h>
+#include "class_driver.h"
+
 #define HOST_LIB_TASK_PRIORITY    2
 #define CLASS_TASK_PRIORITY       3
 #define APP_QUIT_PIN GPIO_NUM_0 // Pin used to stop USB task app, usually Boot button pin
@@ -23,10 +26,10 @@
 
 /// Variables declaration ///
 
-static const char *TAG = "USB host lib";
+static const char *TAG_USB_host = "USB host lib";
 QueueHandle_t app_event_queue = NULL;
 
-/// Types declaration ///
+/// Types definition ///
 
 /**
  * @brief APP event group
@@ -46,15 +49,12 @@ typedef struct {
 
 /// Functions declaration ///
 
-static void gpioIsrCallback(void* arg);
-static void usbHostTask(void *arg);
+static void gpioIsrCallback(void*);
+static void usbHostTask(void*);
 
 #ifdef ENABLE_ENUM_FILTER_CALLBACK
 static bool set_config_cb(const usb_device_desc_t*, uint8_t*)
 #endif // ENABLE_ENUM_FILTER_CALLBACK
-
-extern void class_driver_task(void *arg);
-extern void class_driver_client_deregister(void);
 
 /// Class members definition ///
 
@@ -68,7 +68,7 @@ UsbMidiHost::~UsbMidiHost() {
 
 void UsbMidiHost::setup() {
   // Attach callback to BOOT BUTTON to stop USB task
-  ESP_LOGD(TAG, "Attaching callback to BOOT button");
+  ESP_LOGD(TAG_USB_host, "Attaching callback to BOOT button");
   const gpio_config_t input_pin = {
     .pin_bit_mask = BIT64(APP_QUIT_PIN),
     .mode = GPIO_MODE_INPUT,
@@ -80,7 +80,7 @@ void UsbMidiHost::setup() {
   ESP_ERROR_CHECK(gpio_isr_handler_add(APP_QUIT_PIN, gpioIsrCallback, NULL));
 
   // Create USB task
-  ESP_LOGD(TAG, "Creating USB task");
+  ESP_LOGD(TAG_USB_host, "Creating USB task");
   app_event_queue = xQueueCreate(10, sizeof(app_event_queue_t));
 
   app_event_queue_t evt_queue;
@@ -103,7 +103,7 @@ void UsbMidiHost::setup() {
 
   // Create class driver task
   task_created = xTaskCreatePinnedToCore(
-    class_driver_task,
+    classDriverTask,
     "class",
     5 * 1024,
     NULL,
@@ -123,7 +123,7 @@ void UsbMidiHost::setup() {
         usb_host_lib_info_t lib_info;
         ESP_ERROR_CHECK(usb_host_lib_info(&lib_info));
         if (lib_info.num_devices != 0) {
-          ESP_LOGW(TAG, "Shutdown with attached devices.");
+          ESP_LOGW(TAG_USB_host, "Shutdown with attached devices.");
         }
         // End while cycle
         break;
@@ -131,10 +131,10 @@ void UsbMidiHost::setup() {
     }
   }
 
-  ESP_LOGD(TAG, "Shutdown USB task");
+  ESP_LOGD(TAG_USB_host, "Shutdown USB task");
   
   // Deregister client
-  class_driver_client_deregister();
+  classDriverClientUnregister();
   vTaskDelay(10);
 
   // Delete the tasks
@@ -145,7 +145,7 @@ void UsbMidiHost::setup() {
   gpio_isr_handler_remove(APP_QUIT_PIN);
   xQueueReset(app_event_queue);
   vQueueDelete(app_event_queue);
-  ESP_LOGI(TAG, "End of the example");
+  ESP_LOGI(TAG_USB_host, "End of the example");
 }
 
 /// Functions definition ///
@@ -175,7 +175,7 @@ static void gpioIsrCallback(void* arg) {
  */
 static void usbHostTask(void *arg) {
   // Install USB host lib
-  ESP_LOGI(TAG, "Installing USB Host Library");
+  ESP_LOGI(TAG_USB_host, "Installing USB Host Library");
   const usb_host_config_t host_config = {
     .skip_phy_setup = false,
     .intr_flags = ESP_INTR_FLAG_LEVEL1,
@@ -186,30 +186,30 @@ static void usbHostTask(void *arg) {
   ESP_ERROR_CHECK(usb_host_install(&host_config));
 
   // Handle events
-  ESP_LOGI(TAG, "Starting USB events handling");
+  ESP_LOGI(TAG_USB_host, "Starting USB events handling");
   bool has_clients = true;
   bool has_devices = false;
   while (has_clients) {
     uint32_t event_flags;
     ESP_ERROR_CHECK(usb_host_lib_handle_events(portMAX_DELAY, &event_flags));
     if (event_flags & USB_HOST_LIB_EVENT_FLAGS_NO_CLIENTS) {
-      ESP_LOGI(TAG, "Get FLAGS_NO_CLIENTS");
+      ESP_LOGI(TAG_USB_host, "Get FLAGS_NO_CLIENTS");
       if (ESP_OK == usb_host_device_free_all()) {
-        ESP_LOGI(TAG, "All devices marked as free, no need to wait FLAGS_ALL_FREE event");
+        ESP_LOGI(TAG_USB_host, "All devices marked as free, no need to wait FLAGS_ALL_FREE event");
         has_clients = false;
       } else {
-        ESP_LOGI(TAG, "Wait for the FLAGS_ALL_FREE");
+        ESP_LOGI(TAG_USB_host, "Wait for the FLAGS_ALL_FREE");
         has_devices = true;
       }
       if (has_devices && event_flags & USB_HOST_LIB_EVENT_FLAGS_ALL_FREE) {
-        ESP_LOGI(TAG, "Get FLAGS_ALL_FREE");
+        ESP_LOGI(TAG_USB_host, "Get FLAGS_ALL_FREE");
         has_clients = false;
       }
     }
   }
 
   // Shutdown USB
-  ESP_LOGI(TAG, "No more clients and devices, uninstall USB Host library");
+  ESP_LOGI(TAG_USB_host, "No more clients and devices, uninstall USB Host library");
   //Uninstall the USB Host Library
   ESP_ERROR_CHECK(usb_host_uninstall());
   vTaskSuspend(NULL);
