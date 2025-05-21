@@ -51,6 +51,15 @@ typedef struct {
   } constant;                           /**< Constant members. Do not change after installation thus do not require a critical section or mutex */
 } class_driver_t;
 
+typedef struct __attribute__((__packed__)) {
+  uint8_t code_index_number : 4;
+  uint8_t usb_cable_number : 4;
+  uint8_t midi_channel : 4;
+  uint8_t midi_type : 4;
+  uint8_t midi_data_1;
+  uint8_t midi_data_2;
+} midi_usb_packet;
+
 /// Variables declaration ///
 
 static const char *TAG_USB_CLASS = "CLASS";
@@ -176,8 +185,25 @@ static void actionGetStrDesc(usb_device_t *device_obj) {
 }
 
 static void transferCallback(usb_transfer_t *transfer) {
-  ESP_LOGI(TAG_USB_CLASS, "Receiving midi packet: %02x", transfer->data_buffer);
-  // ESP_ERROR_CHECK(usb_host_transfer_submit(transfer));
+  int in_xfer = transfer->bEndpointAddress & USB_B_ENDPOINT_ADDRESS_EP_DIR_MASK;
+  if ((transfer->status == USB_TRANSFER_STATUS_COMPLETED) && in_xfer) {
+    const midi_usb_packet *packets = (midi_usb_packet*)transfer->data_buffer;
+    for (int i = 0; i < transfer->actual_num_bytes / 4; i += 1) {
+      const midi_usb_packet packet = packets[i];
+      if ((packet.usb_cable_number | packet.code_index_number | packet.midi_channel | packet.midi_type | packet.midi_data_1 | packet.midi_data_2) == 0) {
+        break;
+      }
+      if (packet.midi_type == 0x08 || packet.midi_type == 0x09) {
+        ESP_LOGI(
+          "",
+          "Receiving midi packet: cable number: %02x, code index: %02x, midi channel: %02x, midi type: %02x, data1: %02x, data2: %02x",
+          packet.usb_cable_number, packet.code_index_number, packet.midi_channel, packet.midi_type, packet.midi_data_1, packet.midi_data_2
+        );
+      }
+    }
+
+    ESP_ERROR_CHECK_WITHOUT_ABORT(usb_host_transfer_submit(transfer));
+  }
 }
 
 /**

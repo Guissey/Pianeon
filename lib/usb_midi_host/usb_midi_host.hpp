@@ -49,18 +49,42 @@ usb_transfer_t *MIDIIn[MIDI_IN_BUFFERS] = {NULL};
 // See Table 4-1 in the MIDI 1.0 spec at usb.org.
 //
 
+typedef struct __attribute__((__packed__)) {
+  uint8_t code_index_number : 4;
+  uint8_t usb_cable_number : 4;
+  uint8_t midi_channel : 4;
+  uint8_t midi_type : 4;
+  uint8_t midi_data_1;
+  uint8_t midi_data_2;
+} midi_usb_packet;
+
 static void midi_transfer_cb(usb_transfer_t *transfer)
 {
   // ESP_LOGI("", "midi_transfer_cb context: %d", transfer->context);
   if (Device_Handle == transfer->device_handle) {
     int in_xfer = transfer->bEndpointAddress & USB_B_ENDPOINT_ADDRESS_EP_DIR_MASK;
     if ((transfer->status == 0) && in_xfer) {
-      uint8_t *const p = transfer->data_buffer;
-      for (int i = 0; i < transfer->actual_num_bytes; i += 4) {
-        if ((p[i] + p[i+1] + p[i+2] + p[i+3]) == 0) break;
-        // ESP_LOGI("", "midi: %02x %02x %02x %02x",
-        //     p[i], p[i+1], p[i+2], p[i+3]);
+      // uint8_t *const p = transfer->data_buffer;
+      // for (int i = 0; i < transfer->actual_num_bytes; i += 4) {
+      //   if ((p[i] + p[i+1] + p[i+2] + p[i+3]) == 0) break;
+      //   ESP_LOGI("", "midi: %02x %02x %02x %02x",
+      //       p[i], p[i+1], p[i+2], p[i+3]);
+      // }
+      const midi_usb_packet *packets = (midi_usb_packet*)transfer->data_buffer;
+      for (int i = 0; i < transfer->actual_num_bytes / 4; i += 1) {
+        const midi_usb_packet packet = packets[i];
+        if ((packet.usb_cable_number | packet.code_index_number | packet.midi_channel | packet.midi_type | packet.midi_data_1 | packet.midi_data_2) == 0) {
+          break;
+        }
+        if (packet.midi_type == 0x08 || packet.midi_type == 0x09) {
+          ESP_LOGI(
+            "",
+            "cable number: %02x, code index: %02x, midi channel: %02x, midi type: %02x, data1: %02x, data2: %02x",
+            packet.usb_cable_number, packet.code_index_number, packet.midi_channel, packet.midi_type, packet.midi_data_1, packet.midi_data_2
+          );
+        }
       }
+
       esp_err_t err = usb_host_transfer_submit(transfer);
       if (err != ESP_OK) {
         ESP_LOGI("", "usb_host_transfer_submit In fail: %x", err);
