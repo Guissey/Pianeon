@@ -55,7 +55,7 @@ void LedController::setBrightness(uint8_t brightness) {
     brightness_temp = brightness;
   }
   ws2812b->setBrightness(brightness);
-  log_d("Brightness set to: %d", brightness);
+  log_d("brightness set to: %d", brightness);
 }
 
 uint8_t LedController::getBrightness() {
@@ -71,7 +71,7 @@ void LedController::setShowSustain(bool showSustain) {
   } else {
     show_sustain_temp = showSustain;
   }
-  log_d("Brightness set to: %d", showSustain);
+  log_d("brightness set to: %d", showSustain);
 }
 
 bool LedController::getShowSustain() {
@@ -82,12 +82,14 @@ bool LedController::getShowSustain() {
 
 void LedController::lightOn(uint8_t note, uint8_t velocity) {
   ws2812b->setPixelColor(this->computePixelIndex(note), this->getColor());
-  changes_to_show = true;
+  // changes_to_show = true;
+  ws2812b->show();
 }
 
 void LedController::lightOff(uint8_t note) {
   ws2812b->setPixelColor(this->computePixelIndex(note), 0);
-  changes_to_show = true;
+  // changes_to_show = true;
+  ws2812b->show();
 }
 
 void LedController::lightOnSides() {
@@ -95,14 +97,16 @@ void LedController::lightOnSides() {
   uint32_t color = this->getColor();
   ws2812b->setPixelColor(0, color);
   ws2812b->setPixelColor(led_number - 1, color);
-  changes_to_show = true;
+  // changes_to_show = true;
+  ws2812b->show();
 }
 
 void LedController::lightOffSides() {
   if (!this->getShowSustain()) return;
   ws2812b->setPixelColor(0, 0);
   ws2812b->setPixelColor(led_number - 1, 0);
-  changes_to_show = true;
+  // changes_to_show = true;
+  ws2812b->show();
 }
 
 void LedController::show() {

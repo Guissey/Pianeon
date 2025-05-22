@@ -51,7 +51,6 @@ typedef struct {
 
 static void gpioIsrCallback(void*);
 static void usbHostTask(void*);
-static void midiInCallbackHost(midi_usb_packet packet);
 
 #ifdef ENABLE_ENUM_FILTER_CALLBACK
 static bool set_config_cb(const usb_device_desc_t*, uint8_t*)
@@ -245,16 +244,3 @@ static bool set_config_cb(const usb_device_desc_t *dev_desc, uint8_t *bConfigura
     return true;
 }
 #endif // ENABLE_ENUM_FILTER_CALLBACK
-
-/**
- * Callback for received midi packets
- */
-static void midiInCallbackHost(midi_usb_packet packet) {
-  if (packet.midi_type == 0x08 || packet.midi_type == 0x09) {
-    ESP_LOGI(
-      "",
-      "Receiving midi packet cb: cable number: %02x, code index: %02x, midi channel: %02x, midi type: %02x, data1: %02x, data2: %02x",
-      packet.usb_cable_number, packet.code_index_number, packet.midi_channel, packet.midi_type, packet.midi_data_1, packet.midi_data_2
-    );
-  }
-}

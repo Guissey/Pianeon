@@ -275,7 +275,6 @@ static void classDriverDeviceHandle(usb_device_t *device_obj) {
  * @param[in] arg  Midi in callback
  */
 void classDriverTask(void *arg) {
-  ESP_LOGI("", "argument %p", arg);
   midiInCallbackPtr = (midi_in_callback_t*)arg;
   class_driver_t driver_obj = {0};
   usb_host_client_handle_t class_driver_client_hdl = NULL;

@@ -3,6 +3,9 @@
 
 #include <cstdint>
 
+#define MIDI_NOTE_OFF 0x08
+#define MIDI_NOTE_ON 0x09
+
 typedef struct __attribute__((__packed__)) {
   uint8_t code_index_number : 4;
   uint8_t usb_cable_number : 4;
