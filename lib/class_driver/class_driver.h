@@ -4,11 +4,15 @@
  * SPDX-License-Identifier: Unlicense OR CC0-1.0
  */
 
+#ifndef _USB_MIDI_CLASS_H_
+#define _USB_MIDI_CLASS_H_
+
 #include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 #include "esp_log.h"
 #include "usb/usb_host.h"
+#include <midi_types.h>
 
 #define CLIENT_NUM_EVENT_MSG        5
 #define DEV_MAX_COUNT               8
@@ -51,20 +55,12 @@ typedef struct {
   } constant;                           /**< Constant members. Do not change after installation thus do not require a critical section or mutex */
 } class_driver_t;
 
-typedef struct __attribute__((__packed__)) {
-  uint8_t code_index_number : 4;
-  uint8_t usb_cable_number : 4;
-  uint8_t midi_channel : 4;
-  uint8_t midi_type : 4;
-  uint8_t midi_data_1;
-  uint8_t midi_data_2;
-} midi_usb_packet;
-
 /// Variables declaration ///
 
 static const char *TAG_USB_CLASS = "CLASS";
 static class_driver_t *s_driver_obj;
-usb_transfer_t *transfer;
+static usb_transfer_t *transfer;
+static midi_in_callback_t *midiInCallbackPtr = NULL;
 
 /// Functions declaration ///
 
@@ -193,12 +189,15 @@ static void transferCallback(usb_transfer_t *transfer) {
       if ((packet.usb_cable_number | packet.code_index_number | packet.midi_channel | packet.midi_type | packet.midi_data_1 | packet.midi_data_2) == 0) {
         break;
       }
-      if (packet.midi_type == 0x08 || packet.midi_type == 0x09) {
-        ESP_LOGI(
-          "",
-          "Receiving midi packet: cable number: %02x, code index: %02x, midi channel: %02x, midi type: %02x, data1: %02x, data2: %02x",
-          packet.usb_cable_number, packet.code_index_number, packet.midi_channel, packet.midi_type, packet.midi_data_1, packet.midi_data_2
-        );
+      // if (packet.midi_type == 0x08 || packet.midi_type == 0x09) {
+      //   ESP_LOGI(
+      //     "",
+      //     "Receiving midi packet: cable number: %02x, code index: %02x, midi channel: %02x, midi type: %02x, data1: %02x, data2: %02x",
+      //     packet.usb_cable_number, packet.code_index_number, packet.midi_channel, packet.midi_type, packet.midi_data_1, packet.midi_data_2
+      //   );
+      // }
+      if (midiInCallbackPtr != NULL) {
+        (*midiInCallbackPtr)(packet);
       }
     }
 
@@ -273,9 +272,11 @@ static void classDriverDeviceHandle(usb_device_t *device_obj) {
 }
 
 /**
- * 
+ * @param[in] arg  Midi in callback
  */
 void classDriverTask(void *arg) {
+  ESP_LOGI("", "argument %p", arg);
+  midiInCallbackPtr = (midi_in_callback_t*)arg;
   class_driver_t driver_obj = {0};
   usb_host_client_handle_t class_driver_client_hdl = NULL;
   
@@ -353,3 +354,5 @@ void classDriverClientUnregister(void) {
   // Unblock, exit the loop and proceed to deregister client
   ESP_ERROR_CHECK(usb_host_client_unblock(s_driver_obj->constant.client_hdl));
 }
+
+#endif /* _USB_MIDI_CLASS_H_ */
