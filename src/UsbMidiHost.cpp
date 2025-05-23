@@ -18,18 +18,14 @@
 
 #define HOST_LIB_TASK_PRIORITY    2
 #define CLASS_TASK_PRIORITY       3
+#define INTERRUPT_TASK_PRIORITY   3
 #define APP_QUIT_PIN GPIO_NUM_0 // Pin used to stop USB task app, usually Boot button pin
 
 #ifdef CONFIG_USB_HOST_ENABLE_ENUM_FILTER_CALLBACK
 #define ENABLE_ENUM_FILTER_CALLBACK
 #endif // CONFIG_USB_HOST_ENABLE_ENUM_FILTER_CALLBACK
 
-/// Variables declaration ///
-
-static const char *TAG_USB_host = "USB host lib";
-QueueHandle_t app_event_queue = NULL;
-
-/// Types definition ///
+/// Types ///
 
 /**
  * @brief APP event group
@@ -47,10 +43,18 @@ typedef struct {
   app_event_group_t event_group;
 } app_event_queue_t;
 
+/// Variables ///
+
+static const char *TAG_USB_host = "USB host lib";
+static app_event_queue_t evt_queue;
+static QueueHandle_t app_event_queue = NULL;
+static TaskHandle_t host_lib_task_hdl, class_driver_task_hdl;
+
 /// Functions declaration ///
 
 static void gpioIsrCallback(void*);
 static void usbHostTask(void*);
+static void checkInterruptTask(void*);
 
 #ifdef ENABLE_ENUM_FILTER_CALLBACK
 static bool set_config_cb(const usb_device_desc_t*, uint8_t*)
@@ -87,8 +91,6 @@ void UsbMidiHost::setup() {
   ESP_LOGD(TAG_USB_host, "Creating USB task");
   app_event_queue = xQueueCreate(10, sizeof(app_event_queue_t));
 
-  app_event_queue_t evt_queue;
-  TaskHandle_t host_lib_task_hdl, class_driver_task_hdl;
   BaseType_t task_created;
 
   task_created = xTaskCreatePinnedToCore(
@@ -119,37 +121,17 @@ void UsbMidiHost::setup() {
   // Add a short delay to let the tasks run
   vTaskDelay(10);
 
-  while (1) {
-    // Check queue to know if interruption button has been pressed
-    if (xQueueReceive(app_event_queue, &evt_queue, portMAX_DELAY)) {
-      if (APP_EVENT == evt_queue.event_group) {
-        // User pressed button
-        usb_host_lib_info_t lib_info;
-        ESP_ERROR_CHECK(usb_host_lib_info(&lib_info));
-        if (lib_info.num_devices != 0) {
-          ESP_LOGW(TAG_USB_host, "Shutdown with attached devices.");
-        }
-        // End while cycle
-        break;
-      }
-    }
-  }
-
-  ESP_LOGD(TAG_USB_host, "Shutdown USB task");
-  
-  // Deregister client
-  classDriverClientUnregister();
-  vTaskDelay(10);
-
-  // Delete the tasks
-  vTaskDelete(class_driver_task_hdl);
-  vTaskDelete(host_lib_task_hdl);
-
-  // Delete interrupt and queue
-  gpio_isr_handler_remove(APP_QUIT_PIN);
-  xQueueReset(app_event_queue);
-  vQueueDelete(app_event_queue);
-  ESP_LOGI(TAG_USB_host, "End of the example");
+  // Create interruption check task
+  task_created = xTaskCreatePinnedToCore(
+    checkInterruptTask,
+    "interruptTask",
+    2048,
+    NULL,
+    INTERRUPT_TASK_PRIORITY,
+    NULL,
+    1
+  );
+  assert(task_created == pdTRUE);
 }
 
 /// Functions definition ///
@@ -217,6 +199,47 @@ static void usbHostTask(void *arg) {
   //Uninstall the USB Host Library
   ESP_ERROR_CHECK(usb_host_uninstall());
   vTaskSuspend(NULL);
+}
+
+/**
+ * 
+ */
+static void checkInterruptTask(void *arg) {
+  ESP_LOGD(TAG_USB_host, "Start interrupt task on core %d", xPortGetCoreID());
+  while (1) {
+    // Check queue to know if interruption button has been pressed
+    if (xQueueReceive(app_event_queue, &evt_queue, 0)) {
+      if (APP_EVENT == evt_queue.event_group) {
+        // User pressed button
+        usb_host_lib_info_t lib_info;
+        ESP_ERROR_CHECK(usb_host_lib_info(&lib_info));
+        if (lib_info.num_devices != 0) {
+          ESP_LOGW(TAG_USB_host, "Shutdown with attached devices.");
+        }
+        // End while cycle
+        break;
+      }
+    }
+    vTaskDelay(pdMS_TO_TICKS(200));
+  }
+
+  ESP_LOGD(TAG_USB_host, "Shutdown USB task");
+  
+  // Deregister client
+  classDriverClientUnregister();
+  vTaskDelay(10);
+
+  // Delete the tasks
+  vTaskDelete(class_driver_task_hdl);
+  vTaskDelete(host_lib_task_hdl);
+
+  // Delete interrupt and queue
+  gpio_isr_handler_remove(APP_QUIT_PIN);
+  xQueueReset(app_event_queue);
+  vQueueDelete(app_event_queue);
+
+  // Delete own task
+  vTaskDelete(NULL);
 }
 
 

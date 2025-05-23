@@ -36,6 +36,9 @@ void loop() {
   // led.show();
   // server.loop();
   // loopUsbMidi();
+
+  // ESP_LOGI("", "Main loop on core %d", xPortGetCoreID());
+  // vTaskDelay(10);
 }
 
 /// Functions definition ///
