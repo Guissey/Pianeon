@@ -1,13 +1,13 @@
 #include <Arduino.h>
 
 #include "LedController.h"
-// #include "ConfigServer.h"
+#include "ConfigServer.h"
 #include "UsbMidiHost.h"
 
 #define PIN_WS2812B 16
 #define LED_NUMBER 175
 #define USE_PREFERENCES 0
-#define WEBSERVER_MODE 0 // 0: inactive, 1: AP, 2: STA
+#define WEBSERVER_MODE WIFI_MODE_STA // 0: inactive, WIFI_MODE_STA or WIFI_MODE_AP
 
 /// Functions declaration ///
 
@@ -16,7 +16,7 @@ void midiInCallbackMain(midi_usb_packet packet);
 /// Variables ///
 
 LedController led(LED_NUMBER, PIN_WS2812B, USE_PREFERENCES);
-// ConfigServer server(&led, WEBSERVER_MODE);
+ConfigServer server(&led, WEBSERVER_MODE);
 UsbMidiHost usb_midi;
 
 /// Setup ///
@@ -24,18 +24,15 @@ void setup() {
   Serial.begin(115200);
   log_d("Start setup");
   led.setup();
-  // server.setup();
-  usb_midi.setMidiInCallback(&midiInCallbackMain);
-  usb_midi.setup();
-  // setupUsbMidi();
+  server.setup();
+  // usb_midi.setMidiInCallback(&midiInCallbackMain);
+  // usb_midi.setup();
 }
 
 /// Loop ///
 void loop() {
   // led.blinkLoop();
-  // led.show();
-  // server.loop();
-  // loopUsbMidi();
+  server.loop();
 
   // ESP_LOGI("", "Main loop on core %d", xPortGetCoreID());
   // vTaskDelay(10);

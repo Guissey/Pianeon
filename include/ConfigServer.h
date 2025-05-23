@@ -6,7 +6,7 @@
 
 class ConfigServer {
   public:
-    // @param server_mode 0: inactive, 1: AP, 2: STA
+    // @param webserver_mode 0: inactive, WIFI_MODE_STA or WIFI_MODE_AP
     ConfigServer(LedController* led, uint8_t webserver_mode = 0);
     ~ConfigServer();
     void setup();
@@ -15,10 +15,11 @@ class ConfigServer {
   private:
     WebServer* server;
     LedController* led_controller;
-    // 0: inactive, 1: AP, 2: STA
+    // 0: inactive, WIFI_MODE_STA or WIFI_MODE_AP
     uint8_t mode;
     void startApMode();
     void startStaMode();
+    void startServer();
     void onConnect();
     void onPostColor();
     void onPostBrightness();

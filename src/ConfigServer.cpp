@@ -20,12 +20,49 @@ ConfigServer::~ConfigServer() {
 }
 
 void ConfigServer::setup() {
-  if (mode == 1) this->startApMode();
-  else if (mode == 2) this->startStaMode();
+  if (mode == WIFI_MODE_STA) this->startStaMode();
+  else if (mode == WIFI_MODE_AP) this->startApMode();
 }
 
 void ConfigServer::loop() {
   if (mode) server->handleClient();
+}
+
+void ConfigServer::startApMode() {
+  log_i("Starting AP Mode");
+  IPAddress local_ip(LOCAL_IP);
+  IPAddress gateway(GATEWAY_IP);
+  IPAddress subnet(SUBNET);
+  WiFi.mode(WIFI_MODE_AP);
+  WiFi.softAPConfig(local_ip, gateway, subnet);
+  WiFi.softAP(AP_SSID, NULL);
+  delay(100);
+
+  this->startServer();
+}
+
+void ConfigServer::startStaMode() {
+  log_i( "Connecting to wifi network %s with password %s", WIFI_SSID, WIFI_PASSWORD);
+  WiFi.mode(WIFI_MODE_STA);
+  WiFi.config(IPAddress(192,168,1,80), IPAddress(192,168,1,1), IPAddress(255,255,255,0));
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.waitForConnectResult(10000);
+  if (WiFi.status() == WL_CONNECTED) {
+    log_i("Connected with IP %s", WiFi.localIP().toString().c_str());
+    this->startServer();
+  } else {
+    log_e("Connection failed with status %d", WiFi.status());
+    WiFi.disconnect();
+    this->startApMode();
+  }
+}
+
+void ConfigServer::startServer() {
+  server->on("/", [this](){ this->onConnect(); });
+  server->on("/color", HTTP_POST, [this](){ this->onPostColor(); });
+  server->on("/brightness", HTTP_POST, [this](){ this->onPostBrightness(); });
+  server->on("/sustain", HTTP_POST, [this](){ this->onPostShowSustain(); });
+  server->begin();
 }
 
 void ConfigServer::onConnect() {
@@ -38,41 +75,6 @@ void ConfigServer::onConnect() {
   sprintf(greenString, "%d", ((uint8_t*)&led_color)[1]);
   sprintf(blueString, "%d", ((uint8_t*)&led_color)[0]);
   server->send(200, "text/html", getHtmlPage(brightnessString, redString, greenString, blueString, sustain).c_str());
-}
-
-void ConfigServer::startApMode() {
-  log_i("Starting AP Mode");
-  IPAddress local_ip(LOCAL_IP);
-  IPAddress gateway(GATEWAY_IP);
-  IPAddress subnet(SUBNET);
-  WiFi.softAP(AP_SSID, NULL);
-  WiFi.softAPConfig(local_ip, gateway, subnet);
-  delay(100);
-
-  server->on("/", [this](){ this->onConnect(); });
-  server->on("/color", HTTP_POST, [this](){ this->onPostColor(); });
-  server->on("/brightness", HTTP_POST, [this](){ this->onPostBrightness(); });
-  server->on("/sustain", HTTP_POST, [this](){ this->onPostShowSustain(); });
-  server->begin();
-}
-
-void ConfigServer::startStaMode() {
-  log_i( "Connecting to wifi network %s with password %s", WIFI_SSID, WIFI_PASSWORD);
-  // WiFi.config(IPAddress(192,168,1,200), IPAddress(192,168,1,1), IPAddress(255,255,255,0));
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  WiFi.waitForConnectResult(10000);
-  if (WiFi.status() == WL_CONNECTED) {
-    log_i("Connected with IP %s", WiFi.localIP().toString().c_str());
-    server->on("/", [this](){ this->onConnect(); });
-    server->on("/color", HTTP_POST, [this](){ this->onPostColor(); });
-    server->on("/brightness", HTTP_POST, [this](){ this->onPostBrightness(); });
-    server->on("/sustain", HTTP_POST, [this](){ this->onPostShowSustain(); });
-    server->begin();
-  } else {
-    log_e("Connection failed with status %d", WiFi.status());
-    WiFi.disconnect();
-    this->startApMode();
-  }
 }
 
 void ConfigServer::onPostColor() {
