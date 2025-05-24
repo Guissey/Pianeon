@@ -6,7 +6,7 @@
 
 #define PIN_WS2812B 16
 #define LED_NUMBER 175
-#define USE_PREFERENCES 0
+#define USE_PREFERENCES 1
 #define WEBSERVER_MODE WIFI_MODE_STA // 0: inactive, WIFI_MODE_STA or WIFI_MODE_AP
 
 /// Functions declaration ///
@@ -25,17 +25,13 @@ void setup() {
   log_d("Start setup");
   led.setup();
   server.setup();
-  // usb_midi.setMidiInCallback(&midiInCallbackMain);
-  // usb_midi.setup();
+  usb_midi.setMidiInCallback(&midiInCallbackMain);
+  usb_midi.setup();
 }
 
 /// Loop ///
 void loop() {
-  // led.blinkLoop();
   server.loop();
-
-  // ESP_LOGI("", "Main loop on core %d", xPortGetCoreID());
-  // vTaskDelay(10);
 }
 
 /// Functions definition ///

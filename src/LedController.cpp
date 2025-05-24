@@ -71,7 +71,7 @@ void LedController::setShowSustain(bool showSustain) {
   } else {
     show_sustain_temp = showSustain;
   }
-  log_d("brightness set to: %d", showSustain);
+  log_d("show_sustain set to: %d", showSustain);
 }
 
 bool LedController::getShowSustain() {
