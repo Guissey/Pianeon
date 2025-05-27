@@ -6,7 +6,6 @@ LedController::LedController(int led_count, int led_strip_pin, bool use_preferen
   ws2812b = new Adafruit_NeoPixel(led_count, led_strip_pin, NEO_GRB + NEO_KHZ800);
   led_number = led_count;
   use_nvs = use_preferences;
-  changes_to_show = false;
 }
 
 LedController::~LedController() {
@@ -16,7 +15,7 @@ LedController::~LedController() {
 
 void LedController::setup() {
   if (use_nvs) nvs.begin("Pianeon", false);
-  log_d("color %06x, brigthness %d", this->getColor(), this->getBrightness());
+  log_i("color %06x, brigthness %d", this->getColor(), this->getBrightness());
   ws2812b->begin();
   ws2812b->setBrightness(this->getBrightness());
   ws2812b->clear();
@@ -29,7 +28,7 @@ void LedController::setColor(uint32_t color) {
   } else {
     led_color_temp = color;
   }
-  log_d("led_color set to: %04x", color);
+  log_i("led_color set to: %04x", color);
 }
 
 void LedController::setColor(uint8_t red, uint8_t green, uint8_t blue) {
@@ -39,7 +38,7 @@ void LedController::setColor(uint8_t red, uint8_t green, uint8_t blue) {
   } else {
     led_color_temp = color;
   }
-  log_d("led_color set to: %04x", color);
+  log_i("led_color set to: %04x", color);
 }
 
 uint32_t LedController::getColor() {
@@ -55,7 +54,7 @@ void LedController::setBrightness(uint8_t brightness) {
     brightness_temp = brightness;
   }
   ws2812b->setBrightness(brightness);
-  log_d("brightness set to: %d", brightness);
+  log_i("brightness set to: %d", brightness);
 }
 
 uint8_t LedController::getBrightness() {
@@ -71,7 +70,7 @@ void LedController::setShowSustain(bool showSustain) {
   } else {
     show_sustain_temp = showSustain;
   }
-  log_d("show_sustain set to: %d", showSustain);
+  log_i("show_sustain set to: %d", showSustain);
 }
 
 bool LedController::getShowSustain() {
@@ -106,12 +105,6 @@ void LedController::lightOffSides() {
   ws2812b->setPixelColor(0, 0);
   ws2812b->setPixelColor(led_number - 1, 0);
   // changes_to_show = true;
-  ws2812b->show();
-}
-
-void LedController::show() {
-  if (!changes_to_show) return;
-  changes_to_show = false;
   ws2812b->show();
 }
 

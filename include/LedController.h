@@ -1,11 +1,11 @@
 #ifndef _LED_CONTROLLER_H_
 #define _LED_CONTROLLER_H_
 
-#define DEFAULT_LED_COLOR 0xffffff
-#define DEFAULT_BRIGHTNESS 100
-
 #include <Adafruit_NeoPixel.h>
 #include <Preferences.h>
+
+#define DEFAULT_LED_COLOR 0xffffff
+#define DEFAULT_BRIGHTNESS 100
 
 class LedController {
   public:
@@ -24,8 +24,6 @@ class LedController {
     void lightOff(uint8_t note);
     void lightOnSides();
     void lightOffSides();
-    // Use this in loop()
-    void show();
     void blinkLoop();
 
   private:
@@ -36,7 +34,6 @@ class LedController {
     uint32_t led_color_temp = DEFAULT_LED_COLOR;
     uint8_t brightness_temp = DEFAULT_BRIGHTNESS;
     bool show_sustain_temp = true;
-    bool changes_to_show;
     int computePixelIndex(uint8_t note);
     int blink_note = 30;
     unsigned long last_blink_millis = 0;

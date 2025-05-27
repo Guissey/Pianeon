@@ -76,7 +76,7 @@ void UsbMidiHost::setMidiInCallback(midi_in_callback_t *callback) {
 
 void UsbMidiHost::setup() {
   // Attach callback to BOOT BUTTON to stop USB task
-  ESP_LOGD(TAG_USB_host, "Attaching callback to BOOT button");
+  ESP_LOGI(TAG_USB_host, "Attaching callback to BOOT button");
   const gpio_config_t input_pin = {
     .pin_bit_mask = BIT64(APP_QUIT_PIN),
     .mode = GPIO_MODE_INPUT,
@@ -88,7 +88,7 @@ void UsbMidiHost::setup() {
   ESP_ERROR_CHECK(gpio_isr_handler_add(APP_QUIT_PIN, gpioIsrCallback, NULL));
 
   // Create USB task
-  ESP_LOGD(TAG_USB_host, "Creating USB task");
+  ESP_LOGI(TAG_USB_host, "Creating USB task");
   app_event_queue = xQueueCreate(10, sizeof(app_event_queue_t));
 
   BaseType_t task_created;
@@ -205,7 +205,7 @@ static void usbHostTask(void *arg) {
  * 
  */
 static void checkInterruptTask(void *arg) {
-  ESP_LOGD(TAG_USB_host, "Start interrupt task on core %d", xPortGetCoreID());
+  ESP_LOGI(TAG_USB_host, "Start interrupt task on core %d", xPortGetCoreID());
   while (1) {
     // Check queue to know if interruption button has been pressed
     if (xQueueReceive(app_event_queue, &evt_queue, 0)) {
@@ -223,7 +223,7 @@ static void checkInterruptTask(void *arg) {
     vTaskDelay(pdMS_TO_TICKS(200));
   }
 
-  ESP_LOGD(TAG_USB_host, "Shutdown USB task");
+  ESP_LOGI(TAG_USB_host, "Shutdown USB task");
   
   // Deregister client
   classDriverClientUnregister();
