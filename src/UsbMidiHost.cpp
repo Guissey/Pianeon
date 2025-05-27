@@ -242,7 +242,6 @@ static void checkInterruptTask(void *arg) {
   vTaskDelete(NULL);
 }
 
-
 /**
  * @brief Set configuration callback
  * Set the USB device configuration during the enumeration process, must be enabled in the menuconfig

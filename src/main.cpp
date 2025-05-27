@@ -32,6 +32,7 @@ void setup() {
 /// Loop ///
 void loop() {
   server.loop();
+  // led.blinkLoop();
 }
 
 /// Functions definition ///
@@ -52,7 +53,7 @@ void midiInCallbackMain(midi_usb_packet packet) {
       led.lightOffSides();
     } else {
       log_d("Sustain ON");
-      led.lightOffSides();
+      led.lightOnSides();
     }
   }
 }
