@@ -19,7 +19,6 @@
 #define HOST_LIB_TASK_PRIORITY    2
 #define CLASS_TASK_PRIORITY       3
 #define INTERRUPT_TASK_PRIORITY   3
-#define APP_QUIT_PIN GPIO_NUM_0 // Pin used to stop USB task app, usually Boot button pin
 
 #ifdef CONFIG_USB_HOST_ENABLE_ENUM_FILTER_CALLBACK
 #define ENABLE_ENUM_FILTER_CALLBACK
@@ -52,7 +51,6 @@ static TaskHandle_t host_lib_task_hdl, class_driver_task_hdl;
 
 /// Functions declaration ///
 
-static void gpioIsrCallback(void*);
 static void usbHostTask(void*);
 static void checkInterruptTask(void*);
 
@@ -75,18 +73,6 @@ void UsbMidiHost::setMidiInCallback(midi_in_callback_t *callback) {
 }
 
 void UsbMidiHost::setup() {
-  // Attach callback to BOOT BUTTON to stop USB task
-  ESP_LOGI(TAG_USB_host, "Attaching callback to BOOT button");
-  const gpio_config_t input_pin = {
-    .pin_bit_mask = BIT64(APP_QUIT_PIN),
-    .mode = GPIO_MODE_INPUT,
-    .pull_up_en = GPIO_PULLUP_ENABLE,
-    .intr_type = GPIO_INTR_NEGEDGE,
-  };
-  ESP_ERROR_CHECK(gpio_config(&input_pin));
-  ESP_ERROR_CHECK(gpio_install_isr_service(ESP_INTR_FLAG_LEVEL1));
-  ESP_ERROR_CHECK(gpio_isr_handler_add(APP_QUIT_PIN, gpioIsrCallback, NULL));
-
   // Create USB task
   ESP_LOGI(TAG_USB_host, "Creating USB task");
   app_event_queue = xQueueCreate(10, sizeof(app_event_queue_t));
@@ -135,25 +121,6 @@ void UsbMidiHost::setup() {
 }
 
 /// Functions definition ///
-
-/**
- * BOOT button press callback. Exit Host lib task.
- * @param[in] arg  Not used
- */
-static void gpioIsrCallback(void* arg) {
-  const app_event_queue_t evt_queue = {
-    .event_group = APP_EVENT,
-  };
-  BaseType_t xTaskWoken = pdFALSE;
-
-  if (app_event_queue) {
-    xQueueSendFromISR(app_event_queue, &evt_queue, &xTaskWoken);
-  }
-
-  if (xTaskWoken == pdTRUE) {
-    portYIELD_FROM_ISR();
-  }
-}
 
 /**
  * Start USB Host Install and handle events
@@ -234,7 +201,6 @@ static void checkInterruptTask(void *arg) {
   vTaskDelete(host_lib_task_hdl);
 
   // Delete interrupt and queue
-  gpio_isr_handler_remove(APP_QUIT_PIN);
   xQueueReset(app_event_queue);
   vQueueDelete(app_event_queue);
 
